@@ -63,4 +63,11 @@
         order by s.create_time desc
     </select>
 
+    <delete id="deleteByIds">
+        delete from sky_take_out.setmeal where id in
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
 </mapper>

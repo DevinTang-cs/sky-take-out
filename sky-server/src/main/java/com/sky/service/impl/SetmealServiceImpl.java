@@ -6,6 +6,7 @@ import com.sky.constant.MessageConstant;
 import com.sky.constant.StatusConstant;
 import com.sky.dto.SetmealDTO;
 import com.sky.dto.SetmealPageQueryDTO;
+import com.sky.entity.Dish;
 import com.sky.entity.Setmeal;
 import com.sky.entity.SetmealDish;
 import com.sky.exception.DeletionNotAllowedException;
@@ -75,5 +76,45 @@ public class SetmealServiceImpl implements SetmealService {
         }
         setmealMapper.deleteByIds(ids);
         setmealDishMapper.deleteBySetmealIds(ids);
+    }
+
+    /**
+     * 根据id查询套餐
+     * @param id
+     * @return
+     */
+    @Override
+    public SetmealVO getByIdWithDishes(Long id) {
+        Setmeal setmeal = setmealMapper.getById(id);
+        List<SetmealDish> dishes = setmealMapper.getBySetmealId(id);
+
+        SetmealVO setmealVO = new SetmealVO();
+        BeanUtils.copyProperties(setmeal,setmealVO);
+        setmealVO.setSetmealDishes(dishes);
+
+        return setmealVO;
+    }
+
+    /**
+     * 修改套餐
+     * @param setmealDTO
+     */
+    @Override
+    @Transactional
+    public void updateWithDishes(SetmealDTO setmealDTO) {
+        Setmeal setmeal = new Setmeal();
+        BeanUtils.copyProperties(setmealDTO,setmeal);
+
+        setmealMapper.update(setmeal);
+
+        setmealDishMapper.deleteBySetmealId(setmealDTO.getId());
+
+        List<SetmealDish> setmealDishes = setmealDTO.getSetmealDishes();
+        if(setmealDishes!=null && setmealDishes.size()>0){
+            setmealDishes.forEach(setmealDish -> {
+                setmealDish.setSetmealId(setmealDTO.getId());
+            });
+            setmealDishMapper.insertBatch(setmealDishes);
+        }
     }
 }

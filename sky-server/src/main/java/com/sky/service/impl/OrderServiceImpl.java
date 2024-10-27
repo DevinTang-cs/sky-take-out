@@ -84,6 +84,7 @@ public class OrderServiceImpl implements OrderService {
         orders.setPhone(addressBook.getPhone());
         orders.setConsignee(addressBook.getConsignee());//收货人
         orders.setUserId(userId);
+        orders.setAddress(addressBook.getAddressDetail());
 
         orderMapper.insert(orders);
 

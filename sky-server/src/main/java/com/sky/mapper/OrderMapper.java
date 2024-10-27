@@ -31,6 +31,9 @@ public interface OrderMapper {
     @Select("select * from sky_take_out.orders where number = #{orderNumber} and user_id= #{userId}")
     Orders getByNumberAndUserId(String orderNumber, Long userId);
 
-    
+
     Page<Orders> pageQuery(OrdersPageQueryDTO ordersPageQueryDTO);
+
+    @Select("select * from sky_take_out.orders where id=#{id}")
+    Orders getById(Long id);
 }

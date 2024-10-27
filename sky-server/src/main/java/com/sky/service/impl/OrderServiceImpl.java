@@ -19,6 +19,7 @@ import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@Slf4j
 public class OrderServiceImpl implements OrderService {
 
     @Autowired
@@ -211,5 +213,23 @@ public class OrderServiceImpl implements OrderService {
         }
         return new PageResult(ordersPage.getTotal(),list);
     }
+
+    /**
+     * 根据id查询订单详情
+     * @param id
+     * @return
+     */
+    @Override
+    public OrderVO details(Long id) {
+        Orders orders = orderMapper.getById(id);
+        log.info("id={}",id);
+        List<OrderDetail> list = orderDetailMapper.getByOrderId(orders.getId());
+        log.info("id={}",orders.getId());
+        OrderVO orderVO = new OrderVO();
+        BeanUtils.copyProperties(orders,orderVO);
+        orderVO.setOrderDetailList(list);
+        return orderVO;
+    }
+
 
 }

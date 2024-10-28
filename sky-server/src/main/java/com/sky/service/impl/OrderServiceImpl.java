@@ -1,5 +1,6 @@
 package com.sky.service.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
@@ -19,6 +20,7 @@ import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
+import com.sky.websocket.WebSocketServer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,6 +51,8 @@ public class OrderServiceImpl implements OrderService {
     private UserMapper userMapper;
     @Autowired
     private WeChatPayUtil weChatPayUtil;
+    @Autowired
+    private WebSocketServer webSocketServer;
     /**
      * 用户下单
      * @param ordersSubmitDTO
@@ -144,20 +150,16 @@ public class OrderServiceImpl implements OrderService {
         Orders ordersDB = orderMapper.getByNumberAndUserId(ordersPaymentDTO.getOrderNumber(), userId);
 
         // 根据订单id更新订单的状态、支付方式、支付状态、结账时间
-        Orders orders=new Orders();
-        orders.setId(ordersDB.getId());
-        orders.setStatus(Orders.TO_BE_CONFIRMED);
-        orders.setPayStatus(Orders.PAID);
-        orders.setCheckoutTime(LocalDateTime.now());
-//        Orders orders = Orders.builder()
-//                .id(ordersDB.getId())
-//                .status(Orders.TO_BE_CONFIRMED) // 订单状态，待接单
-//                .payStatus(Orders.PAID) // 支付状态，已支付
-//                .checkoutTime(LocalDateTime.now()) // 更新支付时间
-//                .build();
+//        Orders orders=new Orders();
+//        orders.setId(ordersDB.getId());
+//        orders.setStatus(Orders.TO_BE_CONFIRMED);
+//        orders.setPayStatus(Orders.PAID);
+//        orders.setCheckoutTime(LocalDateTime.now());
 
-        orderMapper.update(orders);
 
+//        orderMapper.update(orders);
+
+        paySuccess(ordersDB.getNumber());
         return vo;
     }
 
@@ -180,6 +182,15 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         orderMapper.update(orders);
+
+        //通过websocket向客户端浏览器推送消息type orderId content
+        Map map = new HashMap();
+        map.put("type",1);//1.来电提醒 2.客户催单
+        map.put("orderId", orders.getId());
+        map.put("content", "订单号："+outTradeNo);
+
+        String json = JSON.toJSONString(map);
+        webSocketServer.sendToAllClient(json);
     }
 
     /**

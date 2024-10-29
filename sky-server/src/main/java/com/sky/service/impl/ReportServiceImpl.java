@@ -5,17 +5,20 @@ import com.sky.entity.Orders;
 import com.sky.mapper.OrderMapper;
 import com.sky.mapper.UserMapper;
 import com.sky.service.ReportService;
-import com.sky.vo.OrderReportVO;
-import com.sky.vo.SalesTop10ReportVO;
-import com.sky.vo.TurnoverReportVO;
-import com.sky.vo.UserReportVO;
-import io.swagger.models.auth.In;
+import com.sky.service.WorkspaceService;
+import com.sky.vo.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.GetMapping;
 
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -33,6 +36,8 @@ public class ReportServiceImpl implements ReportService {
     private OrderMapper orderMapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private WorkspaceService workspaceService;
     /**
      * 指定时间内的营业额
      * @param begin
@@ -201,6 +206,71 @@ public class ReportServiceImpl implements ReportService {
                 .nameList(nameList)
                 .numberList(numberList)
                 .build();
+    }
+
+    /**
+     * 导出数据报表
+     * @param response
+     */
+    @Override
+    public void exportBusinessData(HttpServletResponse response) {
+        //获取营业数据
+        LocalDate dateEnd = LocalDate.now().minusDays(1);
+        LocalDate dateBegin = LocalDate.now().minusDays(30);
+
+        BusinessDataVO businessDataVO = workspaceService.getBusinessData(
+                LocalDateTime.of(dateBegin, LocalTime.MIN),
+                LocalDateTime.of(dateEnd, LocalTime.MAX)
+        );
+        //写入excel文件
+        InputStream in = this.getClass().getClassLoader().getResourceAsStream("template/chartTemplate.xlsx");
+
+        try {
+            //基于模板文件创建一个新的文件
+            XSSFWorkbook excel = new XSSFWorkbook(in);
+            //表格文件的标签页
+            XSSFSheet sheet = excel.getSheet("Sheet1");
+            //填充数据--时间
+            sheet.getRow(1).getCell(1).setCellValue("时间："+dateBegin+"至"+dateEnd);
+            //获得第四行
+            XSSFRow row = sheet.getRow(3);
+            //营业额
+            row.getCell(2).setCellValue(businessDataVO.getTurnover());
+            //订单完成率
+            row.getCell(4).setCellValue(businessDataVO.getOrderCompletionRate());
+            //新增用户数
+            row.getCell(6).setCellValue(businessDataVO.getNewUsers());
+            //获得第五行
+            row = sheet.getRow(4);
+            //有效订单数
+            row.getCell(2).setCellValue(businessDataVO.getValidOrderCount());
+            //平均单价
+            row.getCell(4).setCellValue(businessDataVO.getUnitPrice());
+            //明细数据
+            for (int i = 0; i < 30; i++) {
+                LocalDate date = dateBegin.plusDays(i);
+                BusinessDataVO businessData = workspaceService.getBusinessData(
+                        LocalDateTime.of(date, LocalTime.MIN),
+                        LocalDateTime.of(date, LocalTime.MAX));
+                row = sheet.getRow(7 + i);
+                row.getCell(1).setCellValue(date.toString());
+                row.getCell(2).setCellValue(businessData.getTurnover());
+                row.getCell(3).setCellValue(businessData.getValidOrderCount());
+                row.getCell(4).setCellValue(businessData.getOrderCompletionRate());
+                row.getCell(5).setCellValue(businessData.getUnitPrice());
+                row.getCell(6).setCellValue(businessData.getNewUsers());
+            }
+
+            //下载到客户端浏览器
+            ServletOutputStream out = response.getOutputStream();
+            excel.write(out);
+
+            out.close();
+            excel.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
